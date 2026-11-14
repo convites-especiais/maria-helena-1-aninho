@@ -1023,7 +1023,10 @@ const store = {
 };
 const jn = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a[a.length - 1];
 let G = null, editing = false, cardBlob = null, notesList = [], listState = SCRIPT_URL ? "loading" : "ok", listFromSheet = false;
-const resp = () => G ? store.get("mh_r_" + G.code) : null;
+/* a planilha é a fonte da verdade: uma resposta guardada no celular só aparece depois de conferida nela nesta visita */
+const verificados = new Set();
+const ok = c => !SCRIPT_URL || verificados.has(c);
+const resp = () => G && ok(G.code) ? store.get("mh_r_" + G.code) : null;
 let viaLink = false, checking = false;
 function setGuest(g){ G = g; }
 (function(){
@@ -1044,7 +1047,7 @@ async function syncRecentes(){
     try {
       const j = await (await fetch(SCRIPT_URL + "?a=status&c=" + enc(c))).json();
       if (!j.ok) { esquecer(c); return; }
-      if (j.respondeu) store.set("mh_r_" + c, {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()});
+      if (j.respondeu) { store.set("mh_r_" + c, {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()}); verificados.add(c); }
       else esquecer(c);
     } catch(_) {}
   }));
@@ -1053,7 +1056,7 @@ async function syncRecentes(){
 function renderRecentes(){
   const box = $("#chips"); box.textContent = "";
   if (listState === "loading") { $("#recentes").hidden = true; return; }
-  const lista = recentes().map(c => findGuest(c)).filter(g => g && store.get("mh_r_" + g.code));
+  const lista = recentes().map(c => findGuest(c)).filter(g => g && ok(g.code) && store.get("mh_r_" + g.code));
   lista.forEach(g => {
     const s = store.get("mh_r_" + g.code), b = document.createElement("button"), sm = document.createElement("small");
     b.type = "button";
@@ -1162,7 +1165,7 @@ $("#rsvp").addEventListener("submit", async e => {
   showErr("#err", ""); const btn = $("#sendBtn"), txt = btn.textContent; btn.disabled = true; btn.textContent = "Enviando…";
   try {
     await api({tipo: "rsvp", senha: G.code, vai: vai ? "Sim" : "Não", confirmados: conf});
-    store.set("mh_r_" + G.code, {vai, conf, t: Date.now()}); lembrar(G.code); editing = false; renderRsvp();
+    store.set("mh_r_" + G.code, {vai, conf, t: Date.now()}); verificados.add(G.code); lembrar(G.code); editing = false; renderRsvp();
     if (vai) showCard(true); else $("#confirmar").scrollIntoView({behavior: "smooth", block: "start"});
   } catch(e) {
     if (e && e.server) { await loadList(); if (G) showErr("#err", "A lista de convidados foi atualizada. Confira os nomes marcados e confirme de novo."); else { $("#findHint").textContent = "A lista de convidados foi atualizada. Procure o seu nome de novo, por favor."; $("#findHint").hidden = false; } }
@@ -1269,10 +1272,10 @@ async function checkServer(){
   try {
     const j = await (await fetch(SCRIPT_URL + "?a=status&c=" + enc(code))).json();
     if (!j.ok || !G || G.code !== code || editing) return;
-    const had = resp();
+    const had = store.get("mh_r_" + code);
     if (j.respondeu) {
       const novo = {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()};
-      store.set("mh_r_" + code, novo); lembrar(code); renderRsvp();
+      store.set("mh_r_" + code, novo); verificados.add(code); lembrar(code); renderRsvp();
       if (!$("#acesso").hidden) { if (novo.vai) showCard(false); else closeCard(); }
     } else if (had) {
       try { localStorage.removeItem(NS + "mh_r_" + code); } catch(_) {}
