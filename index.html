@@ -1258,8 +1258,11 @@ async function loadList(){
       if (!g) { G = null; $("#introTo").hidden = true; renderRsvp(); }
       else if (JSON.stringify([g.n, g.m, g.l]) !== JSON.stringify([G.n, G.m, G.l])) { setGuest(g); if (!editing || $("#rsvp").hidden) renderRsvp(); }
       else G = g;
+    } else {
+      const g = findGuest(store.get("mh_code"));      /* família criada/alterada depois: recupera pelo código guardado */
+      if (g) { setGuest(g); renderRsvp(); }
     }
-    if (!G) search();
+    if (!G) search(); else checkServer();
   } catch(_) {}
 }
 function guestStart(){
