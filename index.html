@@ -1022,7 +1022,7 @@ const store = {
   set(k, v){ try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch(_) {} }
 };
 const jn = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a[a.length - 1];
-let G = null, editing = false, cardBlob = null, notesList = [], listState = SCRIPT_URL ? "loading" : "ok";
+let G = null, editing = false, cardBlob = null, notesList = [], listState = SCRIPT_URL ? "loading" : "ok", listFromSheet = false;
 const resp = () => G ? store.get("mh_r_" + G.code) : null;
 let viaLink = false, checking = false;
 function setGuest(g){ G = g; }
@@ -1038,19 +1038,21 @@ function lembrar(code){ store.set("mh_recentes", [code, ...recentes().filter(c =
 async function syncRecentes(){
   /* confere na planilha os atalhos deste celular (se zeraram ou mudaram a resposta, o atalho acompanha) */
   if (!SCRIPT_URL) return;
+  const esquecer = c => { try { localStorage.removeItem(NS + "mh_r_" + c); } catch(_) {} store.set("mh_recentes", recentes().filter(x => x !== c)); };
   await Promise.all(recentes().map(async c => {
-    if (!findGuest(c)) return;
+    if (listFromSheet && !findGuest(c)) { esquecer(c); return; }      /* família saiu da lista ou mudou de senha */
     try {
       const j = await (await fetch(SCRIPT_URL + "?a=status&c=" + enc(c))).json();
-      if (!j.ok) return;
+      if (!j.ok) { esquecer(c); return; }
       if (j.respondeu) store.set("mh_r_" + c, {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()});
-      else { try { localStorage.removeItem(NS + "mh_r_" + c); } catch(_) {} }
+      else esquecer(c);
     } catch(_) {}
   }));
   if (!G) renderRecentes();
 }
 function renderRecentes(){
   const box = $("#chips"); box.textContent = "";
+  if (listState === "loading") { $("#recentes").hidden = true; return; }
   const lista = recentes().map(c => findGuest(c)).filter(g => g && store.get("mh_r_" + g.code));
   lista.forEach(g => {
     const s = store.get("mh_r_" + g.code), b = document.createElement("button"), sm = document.createElement("small");
@@ -1321,11 +1323,11 @@ $("#recForm").addEventListener("submit", async e => {
 /* lista sempre atualizada: lê nomes e famílias direto da planilha */
 async function loadList(){
   if (!SCRIPT_URL) return;
-  const fallback = setTimeout(() => { if (listState === "loading") { listState = "ok"; if (!G) search(); } }, 8000);
+  const fallback = setTimeout(() => { if (listState === "loading") { listState = "ok"; if (!G) { search(); renderRecentes(); } } }, 8000);
   try {
     const j = await (await fetch(SCRIPT_URL + "?a=lista")).json();
     if (!j.ok || !Array.isArray(j.lista) || !j.lista.length) throw 0;
-    GUESTS = decodeList(j.lista);
+    GUESTS = decodeList(j.lista); listFromSheet = true;
     if (G) {
       const g = findGuest(G.code);
       if (!g) { G = null; $("#introTo").hidden = true; renderRsvp(); }
