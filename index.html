@@ -999,7 +999,7 @@ const store = {
   set(k, v){ try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch(_) {} }
 };
 const jn = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a[a.length - 1];
-let G = null, editing = false, cardBlob = null, notesList = [];
+let G = null, editing = false, cardBlob = null, notesList = [], listState = SCRIPT_URL ? "loading" : "ok";
 const resp = () => G ? store.get("mh_r_" + G.code) : null;
 function setGuest(g){
   G = g; if (!G) return;
@@ -1014,7 +1014,7 @@ function setGuest(g){
 async function api(data){
   if (!SCRIPT_URL) { await new Promise(r => setTimeout(r, 450)); return {ok: true, teste: true}; }
   const r = await fetch(SCRIPT_URL, {method: "POST", body: JSON.stringify(data)});
-  const j = await r.json(); if (!j.ok) throw new Error(j.erro || "erro"); return j;
+  const j = await r.json(); if (!j.ok) { const e = new Error(j.erro || "erro"); e.server = true; throw e; } return j;
 }
 const showErr = (id, msg) => { $(id).textContent = msg || ""; $(id).hidden = !msg; };
 
@@ -1065,6 +1065,7 @@ function search(){
   const sd = side(), box = $("#results"); box.textContent = ""; $("#findBox").hidden = !sd; if (!sd) return;
   const lista = GUESTS.filter(g => g.l === sd), q = fold($("#findIn").value).trim().split(/\s+/).filter(Boolean);
   const hint = m => { $("#findHint").textContent = m; $("#findHint").hidden = !m; };
+  if (listState === "loading") { hint("Carregando a lista de convidados… 🍒"); return; }
   if (!lista.length) { hint(`A lista de convidados do ${sd} ainda está sendo preparada. 💗`); return; }
   if (!q.length || q.join("").length < 2) { hint("Digite pelo menos 2 letras do seu nome (ou de alguém da sua família)."); return; }
   const found = lista.filter(g => { const ws = fold(g.m.map(a => a[0]).join(" ")).split(/[\s,]+/); return q.every(w => ws.some(x => x.startsWith(w))); }).slice(0, 8);
@@ -1096,7 +1097,10 @@ $("#rsvp").addEventListener("submit", async e => {
     await api({tipo: "rsvp", senha: G.code, vai: vai ? "Sim" : "Não", confirmados: conf});
     store.set("mh_r_" + G.code, {vai, conf, t: Date.now()}); editing = false; renderRsvp();
     if (vai) showCard(true); else $("#confirmar").scrollIntoView({behavior: "smooth", block: "start"});
-  } catch(_) { showErr("#err", "Não consegui enviar agora. Confira a internet e tente de novo."); }
+  } catch(e) {
+    if (e && e.server) { await loadList(); if (G) showErr("#err", "A lista de convidados foi atualizada. Confira os nomes marcados e confirme de novo."); else { $("#findHint").textContent = "A lista de convidados foi atualizada. Procure o seu nome de novo, por favor."; $("#findHint").hidden = false; } }
+    else showErr("#err", "Não consegui enviar agora. Confira a internet e tente de novo.");
+  }
   finally { btn.disabled = false; btn.textContent = txt; }
 });
 $("#seeCard").addEventListener("click", () => showCard(false));
@@ -1242,16 +1246,20 @@ $("#recForm").addEventListener("submit", async e => {
     if (!SCRIPT_URL) store.set("mh_teste_recados", [n, ...(store.get("mh_teste_recados") || [])]);
     notesList.unshift({...n, _new: true}); renderNotes(); notesList[0]._new = false;
     $("#recTxt").value = ""; $("#recOk").hidden = false;
-  } catch(_) { showErr("#recErr", "Não consegui publicar agora. Confira a internet e tente de novo."); }
+  } catch(e) {
+    if (e && e.server) { await loadList(); showErr("#recErr", "A lista de convidados foi atualizada. Encontre o seu nome na confirmação e tente de novo."); }
+    else showErr("#recErr", "Não consegui publicar agora. Confira a internet e tente de novo.");
+  }
   finally { btn.disabled = false; btn.textContent = "Publicar no mural"; }
 });
 
 /* lista sempre atualizada: lê nomes e famílias direto da planilha */
 async function loadList(){
   if (!SCRIPT_URL) return;
+  const fallback = setTimeout(() => { if (listState === "loading") { listState = "ok"; if (!G) search(); } }, 8000);
   try {
     const j = await (await fetch(SCRIPT_URL + "?a=lista")).json();
-    if (!j.ok || !Array.isArray(j.lista) || !j.lista.length) return;
+    if (!j.ok || !Array.isArray(j.lista) || !j.lista.length) throw 0;
     GUESTS = decodeList(j.lista);
     if (G) {
       const g = findGuest(G.code);
@@ -1262,8 +1270,9 @@ async function loadList(){
       const g = findGuest(store.get("mh_code"));      /* família criada/alterada depois: recupera pelo código guardado */
       if (g) { setGuest(g); renderRsvp(); }
     }
-    if (!G) search(); else checkServer();
   } catch(_) {}
+  clearTimeout(fallback); listState = "ok";
+  if (!G) search(); else checkServer();
 }
 function guestStart(){
   renderRsvp(); loadNotes(); loadList();
