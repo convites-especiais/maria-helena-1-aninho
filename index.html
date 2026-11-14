@@ -1077,7 +1077,7 @@ function search(){
 }
 function pick(g){
   setGuest(g); editing = false; renderRsvp(); checkServer();
-  if (resp() && resp().vai) showCard(false); else setTimeout(() => $("#confirmar").scrollIntoView({behavior: "smooth", block: "start"}), 50);
+  setTimeout(() => $("#confirmar").scrollIntoView({behavior: "smooth", block: "start"}), 50);
 }
 ["#sidePai", "#sideMae"].forEach(s => $(s).addEventListener("change", () => { search(); setTimeout(() => { try { $("#findIn").focus({preventScroll: true}); } catch(_) {} }, 50); }));
 $("#findIn").addEventListener("input", search);
@@ -1202,8 +1202,7 @@ async function checkServer(){
     if (j.respondeu) {
       const novo = {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()};
       store.set("mh_r_" + code, novo); renderRsvp();
-      if (novo.vai && !opened && $("#acesso").hidden) showCard(false);
-      else if (!$("#acesso").hidden) { if (novo.vai) showCard(false); else closeCard(); }
+      if (!$("#acesso").hidden) { if (novo.vai) showCard(false); else closeCard(); }
     } else if (had) {
       try { localStorage.removeItem(NS + "mh_r_" + code); } catch(_) {}
       if (!$("#acesso").hidden) closeCard();
@@ -1266,7 +1265,6 @@ async function loadList(){
 function guestStart(){
   renderRsvp(); loadNotes(); loadList();
   const s = resp();
-  if (G && s && s.vai) showCard(false);
   checkServer();
 }
 
