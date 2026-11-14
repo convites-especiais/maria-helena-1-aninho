@@ -860,7 +860,7 @@ html.skip-anim .cover .rv{animation:none!important}
         <div class="btns"><button class="btn" type="button" id="seeCard">Ver meu cartão de acesso</button><button class="btn ghost" type="button" id="redo">Corrigir confirmação</button></div>
         <p class="hint" style="margin-top:14px"><button type="button" class="linkbtn" id="other">＋ Confirmar outra pessoa ou família</button></p>
       </div>
-      <p class="nojs-note nojs-only">Para confirmar presença, abra este convite pelo link pessoal que você recebeu. 💗</p>
+      <p class="nojs-note nojs-only">Para confirmar presença, abra este convite no navegador do celular (Chrome ou Safari). 💗</p>
     </section>
 
     <section class="mural" id="mural" aria-label="Mural de recados">
@@ -1045,7 +1045,7 @@ async function syncRecentes(){
   await Promise.all(recentes().map(async c => {
     if (listFromSheet && !findGuest(c)) { esquecer(c); return; }      /* família saiu da lista ou mudou de senha */
     try {
-      const j = await (await fetch(SCRIPT_URL + "?a=status&c=" + enc(c))).json();
+      const j = await (await fetch(SCRIPT_URL + "?a=status&s=" + enc(c))).json();
       if (!j.ok) { esquecer(c); return; }
       if (j.respondeu) { store.set("mh_r_" + c, {vai: j.vai === "Sim", conf: j.confirmados || [], t: Date.now()}); verificados.add(c); }
       else esquecer(c);
@@ -1270,7 +1270,7 @@ async function checkServer(){
   if (!G || !SCRIPT_URL) return;
   const code = G.code;
   try {
-    const j = await (await fetch(SCRIPT_URL + "?a=status&c=" + enc(code))).json();
+    const j = await (await fetch(SCRIPT_URL + "?a=status&s=" + enc(code))).json();
     if (!j.ok || !G || G.code !== code || editing) return;
     const had = store.get("mh_r_" + code);
     if (j.respondeu) {
