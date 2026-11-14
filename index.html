@@ -1134,15 +1134,19 @@ function skipIntro(){
   if (!opened) { opened = true; document.documentElement.classList.add("skip-anim"); chk.checked = true; intro.hidden = true; playMusic(); }
 }
 $("#acSave").addEventListener("click", async () => {
+  /* baixa o cartão direto para o aparelho (galeria / downloads), no celular e no computador */
+  if (!cardBlob) await new Promise(r => setTimeout(r, 400));
   if (!cardBlob) return;
   const name = `Cartao de acesso Maria Helena - ${G.code}.png`;
-  if (matchMedia("(pointer: coarse)").matches) {
-    try { const f = new File([cardBlob], name, {type: "image/png"});
-      if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: "Cartão de acesso"}); return; }
-    } catch(e) { if (e && e.name === "AbortError") return; }
+  const inApp = /FBAN|FBAV|Instagram|Line\/|; wv\)/i.test(navigator.userAgent);
+  if (!inApp) {
+    const url = URL.createObjectURL(cardBlob), a = document.createElement("a");
+    a.href = url; a.download = name; a.rel = "noopener"; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    $("#acSub").textContent = "Cartão salvo! Procure na galeria ou em Downloads. 💗";
+  } else {
+    $("#acSub").textContent = "Toque e segure o cartão acima e escolha \"Salvar imagem\".";
   }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(cardBlob); a.download = name;
-  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 });
 $("#acInvite").addEventListener("click", () => { closeCard(); skipIntro(); scrollTo(0, 0); });
 $("#acRedo").addEventListener("click", () => { closeCard(); skipIntro(); editing = true; renderRsvp(); setTimeout(() => $("#confirmar").scrollIntoView({block: "start"}), 60); });
