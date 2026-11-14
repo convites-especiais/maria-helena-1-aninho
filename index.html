@@ -333,7 +333,7 @@ button.btn{font-family:var(--f-caps)}
 .mural .ok{color:#2e7d4f;font-style:italic;text-align:center;margin:0}
 /* cartão de acesso */
 #acesso{position:fixed;inset:0;z-index:80;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
-  padding:calc(18px + env(safe-area-inset-top,0px)) 16px calc(26px + env(safe-area-inset-bottom,0px))}
+  padding:calc(66px + env(safe-area-inset-top,0px)) 16px calc(26px + env(safe-area-inset-bottom,0px))}
 #acesso .top{background:rgba(255,250,251,.92);border-radius:18px;padding:10px 22px 12px;box-shadow:0 0 0 1.5px var(--rose-soft)}
 #acesso .script{color:var(--rose-deep);font-size:clamp(34px,9vw,46px)}
 #acesso .hint{margin-top:2px}
@@ -342,6 +342,22 @@ button.btn{font-family:var(--f-caps)}
 #acesso .btns .btn{margin-top:4px}
 #acesso .btns .btn.ghost{background:#fffafb}
 #introTo{margin-top:.9em;color:var(--rose-deep)}
+.ac-x{position:fixed;z-index:82;top:calc(10px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;cursor:pointer;
+  background:#fffafb;box-shadow:0 0 0 1.5px var(--rose-soft),0 6px 14px rgba(150,70,90,.22);display:grid;place-items:center;padding:0;touch-action:manipulation}
+.ac-x svg{width:18px;height:18px;stroke:var(--rose-deep);stroke-width:2.6;stroke-linecap:round}
+.ac-x:active{transform:scale(.92)}
+#acImg.flash{animation:snap .7s ease}
+@keyframes snap{0%{filter:brightness(1)}12%{filter:brightness(1.9);transform:scale(.97)}40%{transform:scale(1.02)}100%{filter:brightness(1);transform:none}}
+#acSave.done{background:#5fae7e;box-shadow:0 6px 14px rgba(46,125,79,.28)}
+#acToast{position:fixed;z-index:83;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,140%);opacity:0;
+  display:flex;align-items:center;gap:12px;width:min(92vw,400px);padding:12px 16px 12px 12px;border-radius:20px;background:#fff;
+  box-shadow:0 0 0 1.5px var(--rose-soft),0 14px 30px rgba(150,70,90,.3);transition:transform .5s cubic-bezier(.2,1.4,.4,1),opacity .3s}
+#acToast.on{transform:translate(-50%,0);opacity:1}
+#acToast .tk{flex:none;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#f9b9c7,var(--rose));font-size:24px}
+#acToast b{display:block;font-family:var(--f-serif);color:var(--rose-deep);font-size:17px;line-height:1.25}
+#acToast small{display:block;font-size:13.5px;color:var(--ink);line-height:1.35;margin-top:2px}
+.burst{position:fixed;z-index:84;pointer-events:none;font-size:22px;left:0;top:0;animation:fly 1.3s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes fly{0%{transform:translate(var(--x0),var(--y0)) scale(.4);opacity:0}15%{opacity:1}100%{transform:translate(var(--x1),var(--y1)) scale(1) rotate(var(--r));opacity:0}}
 
 /* presentes */
 .gifts{list-style:none;margin:0 auto;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 14px;max-width:900px}
@@ -874,6 +890,8 @@ html.skip-anim .cover .rv{animation:none!important}
 </div>
 
 <div id="acesso" class="gingham-bg" role="dialog" aria-modal="true" aria-labelledby="acTitle" hidden>
+  <button class="ac-x" type="button" id="acClose" aria-label="Fechar e ver o convite"><svg viewBox="0 0 20 20"><path d="M5 5 L15 15 M15 5 L5 15"/></svg></button>
+  <div id="acToast" role="status" aria-live="polite"><span class="tk">📸</span><div><b>Cartão salvo na galeria!</b><small>Agora é só mostrar a senha na entrada. Até dia 19! 🍒</small></div></div>
   <div class="top"><p class="eyebrow" id="acEyebrow">Seu cartão de acesso</p><h2 class="script" id="acTitle">Até a festa!</h2>
     <p class="hint" id="acSub">Salve o cartão e apresente a senha na entrada.</p></div>
   <img id="acImg" alt="Cartão de acesso com a sua senha" width="1080" height="1500">
@@ -1129,7 +1147,26 @@ async function showCard(fresh){
   $("#acesso").hidden = false; document.body.style.overflow = "hidden";
   setTimeout(() => { try { $("#acSave").focus({preventScroll: true}); } catch(_) {} }, 60);
 }
-function closeCard(){ $("#acesso").hidden = true; document.body.style.overflow = ""; }
+let toastT = null;
+function celebrate(){
+  const img = $("#acImg"), btn = $("#acSave");
+  img.classList.remove("flash"); void img.offsetWidth; img.classList.add("flash");
+  btn.classList.add("done"); btn.textContent = "✓ Cartão salvo";
+  setTimeout(() => { btn.classList.remove("done"); btn.textContent = "Salvar cartão"; }, 4000);
+  const t = $("#acToast"); t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 4200);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = btn.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, bits = ["💗","🍒","🎀","💕","🌸"];
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement("span"), a = Math.PI * (1.1 + Math.random() * .8), d = 90 + Math.random() * 120;
+    s.className = "burst"; s.textContent = bits[i % bits.length];
+    s.style.setProperty("--x0", cx - 11 + "px"); s.style.setProperty("--y0", cy - 11 + "px");
+    s.style.setProperty("--x1", cx - 11 + Math.cos(a) * d + "px"); s.style.setProperty("--y1", cy - 11 + Math.sin(a) * d - 40 + "px");
+    s.style.setProperty("--r", (Math.random() * 120 - 60).toFixed(0) + "deg"); s.style.animationDelay = (Math.random() * .15).toFixed(2) + "s";
+    document.body.append(s); setTimeout(() => s.remove(), 1600);
+  }
+  try { navigator.vibrate && navigator.vibrate(30); } catch(_) {}
+}
+function closeCard(){ $("#acesso").hidden = true; document.body.style.overflow = ""; $("#acToast").classList.remove("on"); }
 function skipIntro(){
   if (!opened) { opened = true; document.documentElement.classList.add("skip-anim"); chk.checked = true; intro.hidden = true; playMusic(); }
 }
@@ -1143,12 +1180,13 @@ $("#acSave").addEventListener("click", async () => {
     const url = URL.createObjectURL(cardBlob), a = document.createElement("a");
     a.href = url; a.download = name; a.rel = "noopener"; document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 8000);
-    $("#acSub").textContent = "Cartão salvo! Procure na galeria ou em Downloads. 💗";
+    celebrate();
   } else {
     $("#acSub").textContent = "Toque e segure o cartão acima e escolha \"Salvar imagem\".";
   }
 });
 $("#acInvite").addEventListener("click", () => { closeCard(); skipIntro(); scrollTo(0, 0); });
+$("#acClose").addEventListener("click", () => { closeCard(); skipIntro(); });
 $("#acRedo").addEventListener("click", () => { closeCard(); skipIntro(); editing = true; renderRsvp(); setTimeout(() => $("#confirmar").scrollIntoView({block: "start"}), 60); });
 addEventListener("keydown", e => { if (e.key === "Escape" && !$("#acesso").hidden) { closeCard(); skipIntro(); } });
 
